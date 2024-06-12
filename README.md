@@ -7,3 +7,12 @@ Dataset paths are stored in dataset_catalog.json, which need to be modified to l
 ```
 python -m torch.distributed.run --nproc_per_node=16 train.py --dataset [name_of_dataset] --clip_model ViT-B/16 
 ```
+# Configurations
+
+Modify the parameters in ```./configs/config.py``` if necessary.
+
+# Run
+Use the features generated above to run ```python main.py```
+
+
+
