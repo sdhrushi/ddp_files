@@ -1,0 +1,32 @@
+{
+    "eurosat": {
+        "path": "/export/share/datasets/vision/image_datasets/eurosat",
+        "type": "imagefolder",
+        "train": "train",
+        "test": "test"
+    },
+    "patternnet": {
+        "path": "/export/share/datasets/vision/image_datasets/patternnet",
+        "type": "filelist",
+        "train": "train",
+        "test": "test"
+    },
+    "aid": {
+        "path": "/export/share/datasets/vision/image_datasets/aid",
+        "type": "imagefolder",
+        "train": "trainval",
+        "test": "test"
+    },
+    "satlas": {
+        "path": "/export/share/datasets/vision/image_datasets/satlas",
+        "type": "imagefolder",
+        "train": "train",
+        "test": "test"
+    },
+    "imagenet": {
+        "path": "/export/share/datasets/vision/imagenet/",
+        "type": "imagefolder",
+        "train": "train",
+        "test": "val"
+    }  
+}
