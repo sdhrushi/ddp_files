@@ -26,8 +26,8 @@ from collections import OrderedDict
 from ema import ModelEma
 from optim_factory import create_optimizer, get_parameter_groups, LayerDecayValueAssigner
 
-import utils
-from utils import NativeScalerWithGradNormCount as NativeScaler
+import train_utils
+from train_utils import NativeScalerWithGradNormCount as NativeScaler
 
 from build_dataset import build_dataset
 from engine_self_training import train_one_epoch, evaluate
@@ -119,7 +119,7 @@ def get_args():
 
 
 def main(args):
-    utils.init_distributed_mode(args)
+    train_utils.init_distributed_mode(args)
 
     train_configs = json.load(open(args.train_config,'r'))
     train_config = train_configs[args.dataset+'_'+args.clip_model]
@@ -138,7 +138,7 @@ def main(args):
     device = torch.device(args.device)
 
     # fix the seed for reproducibility
-    seed = args.seed + utils.get_rank()
+    seed = args.seed + train_utils.get_rank()
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -153,26 +153,26 @@ def main(args):
     dataset_val = build_dataset(is_train=False, args=args)
 
     if True:  # args.distributed:
-        num_tasks = utils.get_world_size()
-        global_rank = utils.get_rank()
-        sampler_train = torch.utils.data.DistributedSampler(
+        num_tasks = train_utils.get_world_size()
+        global_rank = train_utils.get_rank()
+        sampler_train = torch.train_utils.data.DistributedSampler(
             dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
         )
         print("Sampler_train = %s" % str(sampler_train))
     else:
-        sampler_train = torch.utils.data.RandomSampler(dataset_train)
-    sampler_val = torch.utils.data.SequentialSampler(dataset_val)
+        sampler_train = torch.train_utils.data.RandomSampler(dataset_train)
+    sampler_val = torch.train_utils.data.SequentialSampler(dataset_val)
     
     if global_rank == 0 and args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
-        log_writer = utils.TensorboardLogger(log_dir=args.output_dir)
+        log_writer = train_utils.TensorboardLogger(log_dir=args.output_dir)
     else:
         log_writer = None
-    if args.output_dir and utils.is_main_process():    
+    if args.output_dir and train_utils.is_main_process():    
         with open(os.path.join(args.output_dir, "log.txt"), mode="a", encoding="utf-8") as f:
             f.write(json.dumps(dict(args._get_kwargs())) + "\n")
                 
-    data_loader_train = torch.utils.data.DataLoader(
+    data_loader_train = torch.train_utils.data.DataLoader(
         dataset_train, sampler=sampler_train,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
@@ -180,7 +180,7 @@ def main(args):
         drop_last=True,
     )
 
-    data_loader_val = torch.utils.data.DataLoader(
+    data_loader_val = torch.train_utils.data.DataLoader(
         dataset_val, sampler=sampler_val,
         batch_size=2*args.batch_size,
         num_workers=args.num_workers,
@@ -200,7 +200,7 @@ def main(args):
     print("Model = %s" % str(model_without_ddp))
     print('number of params:', n_parameters)
 
-    total_batch_size = args.batch_size * utils.get_world_size()
+    total_batch_size = args.batch_size * train_utils.get_world_size()
     num_training_steps_per_epoch = len(data_loader_train)
 
     args.lr = train_config['lr'] * total_batch_size / 256
@@ -235,12 +235,12 @@ def main(args):
         loss_scaler = None
         amp_autocast = suppress
 
-    lr_schedule_values = utils.cosine_scheduler(
+    lr_schedule_values = train_utils.cosine_scheduler(
         args.lr, args.min_lr, args.epochs, num_training_steps_per_epoch,
         warmup_epochs=args.warmup_epochs, warmup_steps=args.warmup_steps,
     )
 
-    utils.auto_load_model(
+    train_utils.auto_load_model(
         args=args, model=model, model_without_ddp=model_without_ddp,
         optimizer=optimizer, loss_scaler=loss_scaler, model_ema=model_ema)
     
@@ -270,9 +270,9 @@ def main(args):
             model_ema=model_ema,
         )        
         
-        if args.output_dir and utils.is_main_process() and (epoch + 1) % args.eval_freq == 0:
+        if args.output_dir and train_utils.is_main_process() and (epoch + 1) % args.eval_freq == 0:
             if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
-                utils.save_model(
+                train_utils.save_model(
                     args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                     loss_scaler=loss_scaler, epoch=epoch, model_ema=model_ema)
 
@@ -281,7 +281,7 @@ def main(args):
             if max_accuracy < test_stats["acc1"]:
                 max_accuracy = test_stats["acc1"]
                 if args.output_dir:
-                    utils.save_model(
+                    train_utils.save_model(
                         args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                         loss_scaler=loss_scaler, epoch="best", model_ema=model_ema)
 
